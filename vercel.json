@@ -1,0 +1,24 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/api-docs/",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/openapi.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ]
+}
