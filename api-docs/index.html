@@ -20,19 +20,6 @@
       src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js"
       crossorigin
     ></script>
-    <script>
-      window.onload = function () {
-        window.ui = SwaggerUIBundle({
-          url: new URL("../openapi.json", window.location.href).href,
-          dom_id: "#swagger-ui",
-          deepLinking: true,
-          presets: [
-            SwaggerUIBundle.presets.apis,
-            SwaggerUIStandalonePreset,
-          ],
-          layout: "StandaloneLayout",
-        });
-      };
-    </script>
+    <script defer src="./index.js"></script>
   </body>
 </html>
