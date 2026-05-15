@@ -1,0 +1,12 @@
+{
+  "name": "toy-box",
+  "private": true,
+  "scripts": {
+    "docs:openapi": "node scripts/build-openapi.cjs",
+    "docs:preview": "npx --yes serve . -p 3333"
+  },
+  "dependencies": {
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  }
+}
