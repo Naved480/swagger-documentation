@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Spec: ./openapi.spec.js (from npm run docs:openapi + swagger.js). file:// needs this; http can use JSON too. -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,6 +21,7 @@
       src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js"
       crossorigin
     ></script>
-    <script defer src="./index.js"></script>
+    <script src="./openapi.spec.js"></script>
+    <script src="./index.js"></script>
   </body>
 </html>

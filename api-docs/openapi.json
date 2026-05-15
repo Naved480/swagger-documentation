@@ -1,0 +1,1738 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Toybox API",
+    "version": "1.0.0",
+    "description": "REST API for the Toybox vehicle booking and member services. Module routes return `{ success, data }`. Interactive docs are served at `/api-docs` when the server is running."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local development (default `PORT` in `src/server.js`)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Service liveness"
+    },
+    {
+      "name": "Auth",
+      "description": "Member sign-up, sign-in, profile, and photo upload"
+    },
+    {
+      "name": "Members",
+      "description": "Club members (Sequelize `Member`)"
+    },
+    {
+      "name": "Vehicles",
+      "description": "Add / update vehicles (wizard)"
+    },
+    {
+      "name": "Garage",
+      "description": "My Garage — list, details, health, docs, service requests"
+    },
+    {
+      "name": "Requests",
+      "description": "Member–vehicle service requests and status"
+    },
+    {
+      "name": "Concierge",
+      "description": "Concierge placeholder / future messaging"
+    },
+    {
+      "name": "Notifications",
+      "description": "Notification channel and alert preferences"
+    },
+    {
+      "name": "Support",
+      "description": "Help center, FAQs, and contact shortcuts"
+    },
+    {
+      "name": "Events",
+      "description": "Club events, filters, RSVPs, and capacity"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Returns a simple status payload. Does not verify database connectivity.",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/status": {
+      "get": {
+        "summary": "Auth module health",
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/sign-up": {
+      "post": {
+        "summary": "Register a new member",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  },
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "displayHandle": {
+                    "type": "string",
+                    "description": "With or without @"
+                  },
+                  "mobile": {
+                    "type": "string"
+                  },
+                  "residence": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "409": {
+            "description": "Email or handle already in use"
+          }
+        }
+      }
+    },
+    "/api/auth/sign-in": {
+      "post": {
+        "summary": "Sign in",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens issued"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "Refresh access token",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/2fa/send-otp": {
+      "post": {
+        "summary": "Send OTP (login step-up or authenticated actions)",
+        "description": "For purpose `login`, send `mfaToken` from sign-in (no Bearer). For `change_password` or `enable_2fa`, send Bearer access token.",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "purpose"
+                ],
+                "properties": {
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "login",
+                      "change_password",
+                      "enable_2fa"
+                    ]
+                  },
+                  "mfaToken": {
+                    "type": "string",
+                    "description": "Required when purpose is login"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/2fa/verify-login": {
+      "post": {
+        "summary": "Verify login OTP and receive full session tokens",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/2fa/verify-enable": {
+      "post": {
+        "summary": "Verify OTP and enable two-factor authentication",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "summary": "Change password (OTP required when 2FA is enabled)",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/profile": {
+      "get": {
+        "summary": "Current member profile",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update profile (text fields)",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "displayHandle": {
+                    "type": "string"
+                  },
+                  "mobile": {
+                    "type": "string"
+                  },
+                  "residence": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/profile/photo": {
+      "post": {
+        "summary": "Upload profile photo (multipart)",
+        "description": "multipart field name must be `image`. Set UPLOAD_PROVIDER to `local`, `s3`, or `cloudinary`.",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/concierge": {
+      "get": {
+        "summary": "List concierge (mock)",
+        "description": "Returns mock concierge data until a real persistence layer is wired.",
+        "tags": [
+          "Concierge"
+        ],
+        "responses": {
+          "200": {
+            "description": "Mock list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessConciergeList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create concierge entry (mock)",
+        "description": "Echoes payload in a mock response; not persisted.",
+        "tags": [
+          "Concierge"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mock created response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessConciergeCreate"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "summary": "List events with filters",
+        "description": "Flat list (default) or grouped feed (`grouped=true`) matching Featured / This week / Next month.\nFilter by `category`, `isFeatured`, and search `q` on title or location.\n",
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "drives",
+                "auctions",
+                "dining",
+                "track"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "isFeatured",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false",
+                "1",
+                "0"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "grouped",
+            "description": "When true, returns featured, thisWeek, and nextMonth arrays",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "1"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refDate",
+            "description": "ISO reference date for week/month windows (optional)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event list or grouped sections"
+          },
+          "400": {
+            "description": "Invalid filters"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create event",
+        "tags": [
+          "Events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "summary": "Get event by id",
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event with attendingCount and spotsRemaining"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update event",
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete event",
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/api/events/{id}/rsvp": {
+      "post": {
+        "summary": "RSVP to event",
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "memberId"
+                ],
+                "properties": {
+                  "memberId": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "RSVP created; returns updated event"
+          },
+          "400": {
+            "description": "At capacity"
+          },
+          "404": {
+            "description": "Event or member not found"
+          },
+          "409": {
+            "description": "Already RSVPed"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update RSVP flags for a member (e.g. favorite)",
+        "description": "Requires an existing RSVP; does not create one.",
+        "tags": [
+          "Events"
+        ]
+      },
+      "delete": {
+        "summary": "Cancel RSVP",
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "memberId"
+                ],
+                "properties": {
+                  "memberId": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/settings": {
+      "get": {
+        "summary": "Get notification preferences (channels & alerts)",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current settings merged with defaults"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update notification preferences (partial)",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "preferences": {
+                    "type": "object",
+                    "properties": {
+                      "pushEnabled": {
+                        "type": "boolean"
+                      },
+                      "emailEnabled": {
+                        "type": "boolean"
+                      },
+                      "emailDigestTime": {
+                        "type": "string",
+                        "example": "09:00"
+                      },
+                      "smsEnabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "fromTheClub": {
+                    "type": "object",
+                    "properties": {
+                      "messagesFromJamesEnabled": {
+                        "type": "boolean"
+                      },
+                      "vehicleStatusEnabled": {
+                        "type": "boolean"
+                      },
+                      "eventsInvitationsEnabled": {
+                        "type": "boolean"
+                      },
+                      "announcementsEnabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "quietHours": {
+                    "type": "object",
+                    "properties": {
+                      "doNotDisturbEnabled": {
+                        "type": "boolean"
+                      },
+                      "quietHoursEnabled": {
+                        "type": "boolean"
+                      },
+                      "quietHoursStart": {
+                        "type": "string",
+                        "example": "22:00"
+                      },
+                      "quietHoursEnd": {
+                        "type": "string",
+                        "example": "07:00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests": {
+      "get": {
+        "summary": "List all service requests",
+        "description": "Returns every `Request` linking a member to a vehicle.",
+        "tags": [
+          "Requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessRequests"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a service request",
+        "description": "Creates a `Request` for a `memberId` and `vehicleId`.",
+        "tags": [
+          "Requests"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessRequest"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}/status": {
+      "patch": {
+        "summary": "Update request lifecycle status",
+        "description": "Updates workflow status for a request.",
+        "tags": [
+          "Requests"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Request primary key",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestStatusBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vehicles": {
+      "get": {
+        "summary": "List all vehicles",
+        "description": "Returns every `Vehicle` row (no member scoping in this version).",
+        "tags": [
+          "Vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of vehicles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessVehicles"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a vehicle",
+        "description": "Creates a `Vehicle` with the given make, model, and year.",
+        "tags": [
+          "Vehicles"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vehicle created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessVehicle"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/support/overview": {
+      "get": {
+        "summary": "Help & Support dashboard payload",
+        "description": "Categories with article counts, FAQs, and quick contact actions (concierge / Ask Steve).",
+        "tags": [
+          "Support"
+        ],
+        "responses": {
+          "200": {
+            "description": "Overview"
+          }
+        }
+      }
+    },
+    "/api/support/search": {
+      "get": {
+        "summary": "Search articles and FAQs",
+        "tags": [
+          "Support"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching articles and FAQs"
+          }
+        }
+      }
+    },
+    "/api/members": {
+      "get": {
+        "summary": "List all members",
+        "description": "Returns every `Member` row from the database (no pagination or auth in this version).",
+        "tags": [
+          "Members"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessMembers"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Register a member record",
+        "description": "Creates a `Member`. `email` must be unique.",
+        "tags": [
+          "Members"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Member created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSuccessMember"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error (e.g. duplicate email)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/members/{memberId}/diary": {
+      "get": {
+        "summary": "Member diary (RSVP'd events only)",
+        "description": "Same `Event` + `EventRsvp` data as the main events API — not a new domain model.\nReturns only events this member has RSVP'd to. Use `myRsvp.isFavorite` for starred items;\nuse `PATCH /api/events/{id}/rsvp` to toggle favorite after RSVPing.\n",
+        "tags": [
+          "Members"
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "HealthStatus": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "OK"
+          }
+        }
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "roleId": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "member@example.com"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Alex Mitchell"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MemberCreate": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "integer"
+          }
+        }
+      },
+      "VehicleHealthItem": {
+        "type": "object",
+        "required": [
+          "category",
+          "percentage"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "engine_drivetrain",
+              "tyres",
+              "brakes",
+              "fluids",
+              "battery",
+              "exterior_body"
+            ]
+          },
+          "percentage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 85
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "VehicleInfo": {
+        "type": "object",
+        "required": [
+          "model",
+          "year",
+          "engine",
+          "power",
+          "transmission",
+          "drive",
+          "zeroToHundred",
+          "topSpeed"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Lamborghini",
+            "description": "Brand / make"
+          },
+          "make": {
+            "type": "string",
+            "example": "Lamborghini"
+          },
+          "model": {
+            "type": "string",
+            "example": "Huracan STO"
+          },
+          "year": {
+            "type": "integer",
+            "example": 2022
+          },
+          "engine": {
+            "type": "string",
+            "example": "5.2L Naturally Aspirated V10"
+          },
+          "power": {
+            "type": "string",
+            "example": "640 hp, 565 Nm"
+          },
+          "transmission": {
+            "type": "string",
+            "example": "7-speed LDF dual-clutch"
+          },
+          "drive": {
+            "type": "string",
+            "example": "Rear-wheel drive"
+          },
+          "zeroToHundred": {
+            "type": "string",
+            "example": "3.0 seconds"
+          },
+          "topSpeed": {
+            "type": "string",
+            "example": "310 km/h"
+          }
+        }
+      },
+      "VehicleOwnershipInfo": {
+        "type": "object",
+        "required": [
+          "colour",
+          "chassisNo",
+          "plate",
+          "purchasedAt",
+          "storageBay",
+          "mileage"
+        ],
+        "properties": {
+          "colour": {
+            "type": "string",
+            "example": "Nero Assoluto"
+          },
+          "chassisNo": {
+            "type": "string",
+            "example": "ZHWEC2ZF0NLA14901"
+          },
+          "plate": {
+            "type": "string",
+            "example": "Dubai - A 12345"
+          },
+          "purchasedAt": {
+            "type": "string",
+            "format": "date",
+            "example": "2022-01-01"
+          },
+          "storageBay": {
+            "type": "string",
+            "example": "Bay A-04, Level 1"
+          },
+          "mileage": {
+            "type": "string",
+            "example": "12,450 km"
+          }
+        }
+      },
+      "VehicleAdd": {
+        "type": "object",
+        "required": [
+          "vehicleInfo",
+          "ownershipInfo",
+          "health"
+        ],
+        "properties": {
+          "vehicleInfo": {
+            "$ref": "#/components/schemas/VehicleInfo"
+          },
+          "ownershipInfo": {
+            "$ref": "#/components/schemas/VehicleOwnershipInfo"
+          },
+          "health": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VehicleHealthItem"
+            }
+          },
+          "documents": {
+            "type": "object",
+            "description": "Optional pre-uploaded document URLs"
+          },
+          "status": {
+            "type": "string",
+            "example": "Available"
+          },
+          "registrationStep": {
+            "type": "string",
+            "enum": [
+              "vehicle_info",
+              "ownership",
+              "docs",
+              "health",
+              "complete"
+            ]
+          }
+        }
+      },
+      "VehicleAddPartial": {
+        "type": "object",
+        "properties": {
+          "vehicleInfo": {
+            "$ref": "#/components/schemas/VehicleInfo"
+          },
+          "ownershipInfo": {
+            "$ref": "#/components/schemas/VehicleOwnershipInfo"
+          },
+          "health": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VehicleHealthItem"
+            }
+          },
+          "documents": {
+            "type": "object"
+          },
+          "status": {
+            "type": "string"
+          },
+          "registrationStep": {
+            "type": "string"
+          }
+        }
+      },
+      "Vehicle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "make": {
+            "type": "string",
+            "example": "Lamborghini"
+          },
+          "model": {
+            "type": "string",
+            "example": "Huracan STO"
+          },
+          "year": {
+            "type": "integer",
+            "example": 2022
+          },
+          "status": {
+            "type": "string",
+            "example": "Available"
+          },
+          "engine": {
+            "type": "string"
+          },
+          "power": {
+            "type": "string"
+          },
+          "transmission": {
+            "type": "string"
+          },
+          "drive": {
+            "type": "string"
+          },
+          "zeroToHundred": {
+            "type": "string"
+          },
+          "topSpeed": {
+            "type": "string"
+          },
+          "colour": {
+            "type": "string"
+          },
+          "chassisNo": {
+            "type": "string"
+          },
+          "plate": {
+            "type": "string"
+          },
+          "purchasedAt": {
+            "type": "string",
+            "format": "date"
+          },
+          "storageBay": {
+            "type": "string"
+          },
+          "mileage": {
+            "type": "string"
+          },
+          "documents": {
+            "type": "object"
+          },
+          "health": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VehicleHealthItem"
+            }
+          },
+          "registrationStep": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "VehicleCreate": {
+        "type": "object",
+        "required": [
+          "make",
+          "model",
+          "year"
+        ],
+        "properties": {
+          "make": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1900,
+            "maximum": 2100
+          },
+          "status": {
+            "type": "string",
+            "default": "Available"
+          }
+        }
+      },
+      "Request": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "example": "Requested",
+            "description": "Lifecycle status"
+          },
+          "memberId": {
+            "type": "integer",
+            "example": 1
+          },
+          "vehicleId": {
+            "type": "integer",
+            "example": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RequestCreate": {
+        "type": "object",
+        "required": [
+          "memberId",
+          "vehicleId"
+        ],
+        "properties": {
+          "memberId": {
+            "type": "integer"
+          },
+          "vehicleId": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "default": "Requested"
+          }
+        }
+      },
+      "RequestStatusBody": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Requested",
+              "Accepted",
+              "In Progress",
+              "Completed"
+            ]
+          }
+        }
+      },
+      "ModuleSuccessMembers": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          }
+        }
+      },
+      "ModuleSuccessMember": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Member"
+          }
+        }
+      },
+      "ModuleSuccessVehicles": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vehicle"
+            }
+          }
+        }
+      },
+      "ModuleSuccessVehicle": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Vehicle"
+          }
+        }
+      },
+      "ModuleSuccessRequests": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Request"
+            }
+          }
+        }
+      },
+      "ModuleSuccessRequest": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Request"
+          }
+        }
+      },
+      "RequestLifecycleResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Request id from path"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ModuleSuccessLifecycle": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/RequestLifecycleResult"
+          }
+        }
+      },
+      "ConciergeMockItem": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Mock data for concierge"
+          }
+        }
+      },
+      "ModuleSuccessConciergeList": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConciergeMockItem"
+            }
+          }
+        }
+      },
+      "ConciergeCreateResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Created concierge"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ModuleSuccessConciergeCreate": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/ConciergeCreateResponse"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Server Error"
+          }
+        }
+      }
+    }
+  }
+}
